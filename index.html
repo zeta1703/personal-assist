@@ -7,6 +7,16 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="49天挑战" />
   <title>49天习惯挑战</title>
+  <script>
+    // Load html2canvas gracefully — only works when hosted (e.g. GitHub Pages)
+    // Falls back silently in restricted environments like Claude's preview
+    (function() {
+      var s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+      s.onerror = function() { window._html2canvasFailed = true; };
+      document.head.appendChild(s);
+    })();
+  </script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     body {
@@ -166,6 +176,25 @@
       opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap;
     }
     .toast.show { opacity: 1; }
+    /* Screenshot button */
+    .screenshot-btn {
+      width: 100%; padding: 11px 0; margin-top: 0;
+      border-radius: 14px; font-size: 13px; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: all 0.2s;
+      background: rgba(16,185,129,0.12);
+      border: 1px solid rgba(16,185,129,0.25);
+      color: #34D399;
+    }
+    .screenshot-wrap { padding: 0 16px 8px; }
+    /* Modal download btn */
+    .modal-dl-btn {
+      width: 100%; margin-top: 10px; padding: 12px 0;
+      background: linear-gradient(135deg, #F97316, #EF4444);
+      border: none; border-radius: 14px;
+      font-size: 13px; font-weight: 700; color: #fff;
+      cursor: pointer; font-family: inherit;
+      box-shadow: 0 4px 16px rgba(249,115,22,0.35);
+    }
 
     /* Home indicator */
     .home-ind { display: flex; justify-content: center; padding-bottom: 8px; }
@@ -256,6 +285,10 @@
   <div class="gen-btn-wrap">
     <button class="gen-btn" onclick="showCard()">✨ 生成挑战卡片</button>
   </div>
+  <!-- Screenshot button -->
+  <div class="screenshot-wrap">
+    <button class="screenshot-btn" onclick="screenshotApp()">📸 保存截图 · 分享到社交媒体</button>
+  </div>
   <!-- Backup buttons -->
   <div class="backup-wrap">
     <button class="backup-btn export-btn" onclick="exportData()">📤 备份进度</button>
@@ -282,6 +315,7 @@
       </div>
       <div class="modal-motto">坚持下去 · 你正在创造美好的改变 🌱</div>
       <button class="close-btn" onclick="hideCard()">关闭</button>
+      <button class="modal-dl-btn" onclick="screenshotCard()">📸 下载挑战卡片</button>
     </div>
   </div>
 </div>
@@ -533,7 +567,69 @@ function importData(event) {
   reader.readAsText(file);
 }
 
-function showToast(msg) {
+async function screenshotApp() {
+  if (typeof html2canvas === 'undefined') {
+    showToast("📸 截图功能需在 GitHub 上使用");
+    return;
+  }
+  showToast("⏳ 正在生成截图...");
+  const el = document.getElementById("app");
+  try {
+    const canvas = await html2canvas(el, {
+      backgroundColor: "#111114",
+      scale: 2,
+      useCORS: true,
+      scrollY: 0,
+      windowWidth: el.scrollWidth,
+      windowHeight: el.scrollHeight,
+    });
+    const date = new Date().toISOString().slice(0,10);
+    downloadCanvas(canvas, `习惯打卡_${date}.png`);
+    showToast("✅ 截图已保存！");
+  } catch(e) {
+    showToast("❌ 截图失败，请重试");
+  }
+}
+
+async function screenshotCard() {
+  if (typeof html2canvas === 'undefined') {
+    showToast("📸 截图功能需在 GitHub 上使用");
+    return;
+  }
+  showToast("⏳ 正在生成卡片...");
+  const el = document.querySelector(".modal-card");
+  try {
+    const canvas = await html2canvas(el, {
+      backgroundColor: "#1a1020",
+      scale: 3,
+      useCORS: true,
+    });
+    const date = new Date().toISOString().slice(0,10);
+    downloadCanvas(canvas, `挑战卡片_${date}.png`);
+    showToast("✅ 卡片已保存！");
+  } catch(e) {
+    showToast("❌ 截图失败，请重试");
+  }
+}
+
+function downloadCanvas(canvas, filename) {
+  // On iPhone Safari, open in new tab so user can long-press to save
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  const isMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (isSafari && isMobile) {
+    const win = window.open();
+    win.document.write(`<img src="${canvas.toDataURL('image/png')}" style="max-width:100%;display:block;margin:auto">`);
+    win.document.title = filename;
+    showToast("长按图片 → 存储到相册 📷");
+  } else {
+    const a = document.createElement("a");
+    a.href = canvas.toDataURL("image/png");
+    a.download = filename;
+    a.click();
+  }
+}
+
+
   const t = document.getElementById("toast");
   t.textContent = msg;
   t.classList.add("show");
